@@ -199,7 +199,6 @@ color:#2fbcff;
     """,
     unsafe_allow_html=True,
 )
-
 # Create a Streamlit web app
 st.title('RECIPE RECOMMENDATION SYSTEM')
 
