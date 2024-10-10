@@ -125,7 +125,7 @@ visibility:hidden;
         }
        section.main.st-emotion-cache-bm2z3a.ea3mdgi8 {
     background-size: cover;
-    background-image: url(img.jpg);
+    background-image: url("img.jpg");
     
 }
 
