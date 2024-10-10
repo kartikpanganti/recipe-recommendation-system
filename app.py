@@ -125,7 +125,7 @@ visibility:hidden;
         }
        section.main.st-emotion-cache-bm2z3a.ea3mdgi8 {
     background-size: cover;
-    background-image: url("https://media.istockphoto.com/id/1419288565/photo/spices-herbs-and-cooking-oil-border-flat-lay.jpg?s=612x612&w=0&k=20&c=4y8OW0PkJfpk9cQ2BSufs3pJqXC89cZNb_PMduRdWEU=");
+    background-image: url(img.jpg);
     
 }
 
