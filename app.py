@@ -4,6 +4,7 @@ from langchain.prompts import PromptTemplate
 from langchain_google_genai import GoogleGenerativeAI
 from langchain.chains import LLMChain
 import langchain.globals as lcg
+import base64
 
 # Set verbose mode
 lcg.set_verbose(True)
@@ -12,6 +13,7 @@ lcg.set_verbose(True)
 os.environ["GOOGLE_API_KEY"] = 'AIzaSyC42poakq8cly-o_pK-g8gBgIZM9r-Yz1I'  # Replace with your actual API key
 generation_config = {"temperature": 0.9, "top_p": 1, "top_k": 1, "max_output_tokens": 2048}
 model = GoogleGenerativeAI(model="gemini-1.0-pro", generation_config=generation_config)
+
 
 # Function to build the dynamic prompt based on inputs
 def build_prompt(input_data):
@@ -32,7 +34,8 @@ def build_prompt(input_data):
     if input_data['preferred_ingredients']:
         prompt += f"Preferred ingredients: {input_data['preferred_ingredients']}\n"
     if input_data['dietary_restrictions']:
-        prompt += f"Dietary restrictions: {input_data['dietary_restrictions']}\n"
+        prompt += f"Please exclude the following ingredients due to dietary restrictions: {input_data['dietary_restrictions']}\n"
+
     if input_data['cooking_time']:
         prompt += f"Preferred cooking time: {input_data['cooking_time']} minutes\n"
     
@@ -123,9 +126,7 @@ visibility:hidden;
     text-align: center;
     font-size: 54px;
         }
-       section.main.st-emotion-cache-bm2z3a.ea3mdgi8 {
-    background-size: cover;
-    background-image: url("img.jpg");
+       
     
 }
 
@@ -261,3 +262,27 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+
+
+@st.cache(allow_output_mutation=True)
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+def set_png_as_page_bg(png_file):
+    bin_str = get_base64_of_bin_file(png_file)
+    page_bg_img = '''
+    <style>
+    section.main.st-emotion-cache-bm2z3a.ea3mdgi8 {
+    background-image: url("data:image/png;base64,%s");
+    background-size: cover;
+    }
+    </style>
+    ''' % bin_str
+    
+    st.markdown(page_bg_img, unsafe_allow_html=True)
+    return
+
+set_png_as_page_bg('backimg.jpg')
