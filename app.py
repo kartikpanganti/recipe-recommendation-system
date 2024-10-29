@@ -130,6 +130,12 @@ visibility:hidden;
     
 }
 
+
+  section.main.st-emotion-cache-bm2z3a.ea3mdgi8 {
+    background-image: url("https://media.istockphoto.com/id/1419288565/photo/spices-herbs-and-cooking-oil-border-flat-lay.jpg?s=612x612&w=0&k=20&c=4y8OW0PkJfpk9cQ2BSufs3pJqXC89cZNb_PMduRdWEU=");
+    background-size: cover;
+    }
+
 p .st-emotion-cache-1sno8jx e1nzilvr4{
 {
     font-size: 50px;
@@ -265,7 +271,7 @@ st.markdown(
 
 
 
-@st.cache_data(allow_output_mutation=True)
+@st.cache(allow_output_mutation=True)
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
