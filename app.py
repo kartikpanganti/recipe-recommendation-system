@@ -4,13 +4,21 @@ from langchain.prompts import PromptTemplate
 from langchain_google_genai import GoogleGenerativeAI
 from langchain.chains import LLMChain
 import langchain.globals as lcg
-import base64
+
+
+
+
+print("VISIT THE LINK BELOW TO SEE THE APP IN ACTION")
+print("---------------------------------------------------------")
+print("| https://recipe--recommendation--system.streamlit.app/ |")
+print("---------------------------------------------------------")
+
 
 # Set verbose mode
 lcg.set_verbose(True)
 
 # Set up Google Generative AI model
-os.environ["GOOGLE_API_KEY"] = 'AIzaSyC42poakq8cly-o_pK-g8gBgIZM9r-Yz1I'  # Replace with your actual API key
+os.environ["GOOGLE_API_KEY"] = 'AIzaSyDVUQK9uyXbd_zs8ToAe-imxABLhFXxHJc'  # Replace with your actual API key
 generation_config = {"temperature": 0.9, "top_p": 1, "top_k": 1, "max_output_tokens": 2048}
 model = GoogleGenerativeAI(model="gemini-1.0-pro", generation_config=generation_config)
 
@@ -106,6 +114,11 @@ visibility:hidden;
     visibility:hidden;
     }
 
+     section.main.st-emotion-cache-bm2z3a.ea3mdgi8 {
+    background-image: url("https://media.istockphoto.com/id/1419288565/photo/spices-herbs-and-cooking-oil-border-flat-lay.jpg?s=612x612&w=0&k=20&c=4y8OW0PkJfpk9cQ2BSufs3pJqXC89cZNb_PMduRdWEU=");
+    background-size: cover;
+    }
+
     .st-emotion-cache-h4xjwg ezrtsby2{
     visibility:hidden;
     }
@@ -129,12 +142,6 @@ visibility:hidden;
        
     
 }
-
-
-  section.main.st-emotion-cache-bm2z3a.ea3mdgi8 {
-    background-image: url("https://media.istockphoto.com/id/1419288565/photo/spices-herbs-and-cooking-oil-border-flat-lay.jpg?s=612x612&w=0&k=20&c=4y8OW0PkJfpk9cQ2BSufs3pJqXC89cZNb_PMduRdWEU=");
-    background-size: cover;
-    }
 
 p .st-emotion-cache-1sno8jx e1nzilvr4{
 {
@@ -259,7 +266,7 @@ if st.button('Get Recipe Recommendations'):
 st.markdown(
     """
     <div class="footer">
-        &copy; 2024 CODE_WIZARDS. All rights reserved.
+        &copy;
         @kartik panaganti
         @Zahid shaikh
         @vijaykumar Maske
@@ -269,26 +276,3 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
-
-@st.cache(allow_output_mutation=True)
-def get_base64_of_bin_file(bin_file):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
-
-def set_png_as_page_bg(png_file):
-    bin_str = get_base64_of_bin_file(png_file)
-    page_bg_img = '''
-    <style>
-    section.main.st-emotion-cache-bm2z3a.ea3mdgi8 {
-    background-image: url("data:image/png;base64,%s");
-    background-size: cover;
-    }
-    </style>
-    ''' % bin_str
-    
-    st.markdown(page_bg_img, unsafe_allow_html=True)
-    return
-
-set_png_as_page_bg('backimg.jpg')
