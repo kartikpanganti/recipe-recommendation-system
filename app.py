@@ -18,7 +18,7 @@ print("---------------------------------------------------------")
 lcg.set_verbose(True)
 
 # Set up Google Generative AI model
-os.environ["GOOGLE_API_KEY"] = 'AIzaSyDVUQK9uyXbd_zs8ToAe-imxABLhFXxHJc'  # Replace with your actual API key
+os.environ["GOOGLE_API_KEY"] = 'AIzaSyB5zDGm4ncIXzguq9qnYN6b1POuWJPEEfk'  # Replace with your actual API key this key will not work 
 generation_config = {"temperature": 0.9, "top_p": 1, "top_k": 1, "max_output_tokens": 2048}
 model = GoogleGenerativeAI(model="gemini-1.0-pro", generation_config=generation_config)
 
