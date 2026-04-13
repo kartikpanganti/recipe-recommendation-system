@@ -1,11 +1,10 @@
 import os
+import json
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import streamlit as st
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import PromptTemplate
-from langchain_core.globals import set_verbose
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 
 
@@ -16,41 +15,152 @@ print("| https://recipe--recommendation--system.streamlit.app/ |")
 print("---------------------------------------------------------")
 
 
-# Set verbose mode
-set_verbose(True)
-
-# Set up Google Generative AI model
-google_api_key = os.getenv("GOOGLE_API_KEY")
-if not google_api_key:
+def get_secret_or_env(key: str):
+    value = os.getenv(key)
+    if value:
+        return value
     try:
-        google_api_key = st.secrets["GOOGLE_API_KEY"]
+        return st.secrets[key]
     except Exception:
-        google_api_key = None
+        return None
 
+
+google_api_key = get_secret_or_env("GOOGLE_API_KEY")
 if not google_api_key:
     st.error(
-        "Missing GOOGLE_API_KEY. Set it as an environment variable or in Streamlit Secrets."
+        "Missing GOOGLE_API_KEY. Set it as a Streamlit Environment Variable or in Streamlit Secrets."
     )
     st.stop()
 
-os.environ["GOOGLE_API_KEY"] = google_api_key
-generation_config = {"temperature": 0.7, "top_p": 1, "top_k": 1, "max_output_tokens": 2048}
-model_name = os.getenv("GEMINI_MODEL")
-if not model_name:
-    try:
-        model_name = st.secrets["GEMINI_MODEL"]
-    except Exception:
-        # Safer default: widely available on v1beta generateContent.
-        # Newer models (e.g., 1.5/2.x) may not be enabled for all projects.
-        model_name = "gemini-1.0-pro"
+# Generation config for Gemini REST API
+generation_config = {
+    "temperature": 0.7,
+    "topP": 1,
+    "topK": 1,
+    "maxOutputTokens": 2048,
+}
 
-def build_llm(name: str) -> ChatGoogleGenerativeAI:
-    return ChatGoogleGenerativeAI(
-        model=name, google_api_key=google_api_key, **generation_config
+configured_model = get_secret_or_env("GEMINI_MODEL") or get_secret_or_env("GOOGLE_MODEL")
+configured_api_version = get_secret_or_env("GEMINI_API_VERSION")
+
+
+def _normalize_model_name(model: str) -> str:
+    model = (model or "").strip()
+    if model.startswith("models/"):
+        return model[len("models/") :]
+    return model
+
+
+PREFERRED_MODEL_ORDER: list[str] = [
+    # Prefer fast/cheap models first.
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-pro",
+    "gemini-1.5-pro-latest",
+    # Older naming used by some projects.
+    "gemini-pro",
+    "gemini-1.0-pro",
+]
+
+
+def _gemini_generate_content(
+    *, api_key: str, api_version: str, model: str, prompt: str
+) -> str:
+    model = _normalize_model_name(model)
+    url = (
+        f"https://generativelanguage.googleapis.com/{api_version}/models/{model}:generateContent"
+        f"?key={api_key}"
+    )
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": generation_config,
+    }
+
+    request = urllib.request.Request(
+        url=url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
     )
 
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            error_body = e.read().decode("utf-8")
+            data = json.loads(error_body)
+        except Exception:
+            raise
+        raise RuntimeError(data) from e
 
-model = build_llm(model_name)
+    candidates = data.get("candidates") or []
+    if not candidates:
+        raise RuntimeError({"error": {"message": "No candidates returned", "raw": data}})
+
+    parts = (candidates[0].get("content") or {}).get("parts") or []
+    text = "".join(part.get("text", "") for part in parts).strip()
+    if not text:
+        raise RuntimeError({"error": {"message": "Empty response text", "raw": data}})
+
+    return text
+
+
+def _gemini_list_models(*, api_key: str, api_version: str) -> list[dict]:
+    url = f"https://generativelanguage.googleapis.com/{api_version}/models?key={api_key}"
+    request = urllib.request.Request(url=url, method="GET")
+    with urllib.request.urlopen(request, timeout=30) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    return data.get("models") or []
+
+
+def _get_model_candidates_for_version(api_version: str) -> list[str]:
+    if configured_model:
+        return [_normalize_model_name(configured_model)]
+
+    try:
+        models = _gemini_list_models(api_key=google_api_key, api_version=api_version)
+        supported: list[str] = []
+        for m in models:
+            methods = m.get("supportedGenerationMethods") or []
+            if "generateContent" in methods and m.get("name"):
+                supported.append(_normalize_model_name(m["name"]))
+
+        if supported:
+            preferred = [m for m in PREFERRED_MODEL_ORDER if m in supported]
+            remaining = [m for m in supported if m not in preferred]
+            return preferred + remaining
+    except Exception:
+        pass
+
+    # Last resort static guesses.
+    return PREFERRED_MODEL_ORDER
+
+
+def generate_with_fallbacks(prompt: str) -> str:
+    api_versions = [configured_api_version] if configured_api_version else ["v1", "v1beta"]
+
+    last_error: Exception | None = None
+    for api_version in api_versions:
+        model_candidates = _get_model_candidates_for_version(api_version)
+        for model in model_candidates:
+            try:
+                return _gemini_generate_content(
+                    api_key=google_api_key,
+                    api_version=api_version,
+                    model=model,
+                    prompt=prompt,
+                )
+            except Exception as e:
+                last_error = e
+                # Retry on common "model not found" failures
+                if "NOT_FOUND" in str(e) or "not found" in str(e).lower():
+                    continue
+                raise
+
+    raise last_error or RuntimeError("Gemini request failed")
 
 
 # Function to build the dynamic prompt based on inputs
@@ -159,42 +269,33 @@ if st.button('Get Recipe Recommendations'):
 
     # Build prompt using user inputs
     prompt = build_prompt(input_data)
-    prompt_template = PromptTemplate(
-        input_variables=[],
-        template=prompt
-    )
-
-    # Create and run the chain
-    chain_recipe = prompt_template | model | StrOutputParser()
     try:
         with st.spinner("Generating recipes..."):
-            results_text = chain_recipe.invoke({})
+            results_text = generate_with_fallbacks(prompt)
     except Exception as e:
         error_text = str(e)
-        if "NOT_FOUND" in error_text or "is not found" in error_text:
-            # Automatic fallback for accounts/projects that don't have access to a given model.
-            for fallback_name in ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-preview"):
-                if fallback_name == model_name:
-                    continue
-                try:
-                    chain_recipe_fallback = prompt_template | build_llm(fallback_name) | StrOutputParser()
-                    with st.spinner(f"Retrying with {fallback_name}..."):
-                        results_text = chain_recipe_fallback.invoke({})
+        if "NOT_FOUND" in error_text or "not found" in error_text.lower():
+            try:
+                models = _gemini_list_models(api_key=google_api_key, api_version="v1")
+                supported = []
+                for m in models:
+                    methods = m.get("supportedGenerationMethods") or []
+                    if "generateContent" in methods:
+                        name = m.get("name")
+                        if name:
+                            supported.append(_normalize_model_name(name))
+
+                if supported:
                     st.info(
-                        f"Model '{model_name}' was not available; used '{fallback_name}' instead. "
-                        "To control this, set GEMINI_MODEL in Streamlit Secrets."
+                        "Your API key can access these `generateContent` models (set `GEMINI_MODEL` to one of them):"
                     )
-                    break
-                except Exception:
-                    results_text = None
-            if results_text is not None:
-                st.write("Recommended Recipes:")
-                st.write(results_text)
-                st.stop()
+                    st.code("\n".join(supported[:30]))
+            except Exception:
+                pass
 
         st.error(
-            "Gemini request failed. Set GOOGLE_API_KEY and (optionally) GEMINI_MODEL in Streamlit Secrets. "
-            "If you see NOT_FOUND, your project may not have that model enabled."
+            "Gemini request failed. Check GOOGLE_API_KEY. If the error says NOT_FOUND, set GEMINI_MODEL "
+            "and/or GEMINI_API_VERSION (try v1) in Streamlit Secrets/Environment Variables."
         )
         st.exception(e)
         st.stop()
