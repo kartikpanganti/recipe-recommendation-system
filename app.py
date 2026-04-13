@@ -2,9 +2,10 @@ import os
 from pathlib import Path
 
 import streamlit as st
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.globals import set_verbose
-from langchain_google_genai import GoogleGenerativeAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 
 
@@ -33,15 +34,15 @@ if not google_api_key:
     st.stop()
 
 os.environ["GOOGLE_API_KEY"] = google_api_key
-generation_config = {"temperature": 0.7, "top_p": 1, "top_k": 1, "max_output_tokens": 4048}
+generation_config = {"temperature": 0.7, "top_p": 1, "top_k": 1, "max_output_tokens": 2048}
 model_name = os.getenv("GEMINI_MODEL")
 if not model_name:
     try:
         model_name = st.secrets["GEMINI_MODEL"]
     except Exception:
-        model_name = "gemini-3.1-flash-lite-preview"
+        model_name = "gemini-1.5-flash"
 
-model = GoogleGenerativeAI(model=model_name, generation_config=generation_config)
+model = ChatGoogleGenerativeAI(model=model_name, google_api_key=google_api_key, **generation_config)
 
 
 # Function to build the dynamic prompt based on inputs
@@ -156,8 +157,17 @@ if st.button('Get Recipe Recommendations'):
     )
 
     # Create and run the chain
-    chain_recipe = prompt_template | model
-    results_text = chain_recipe.invoke({})
+    chain_recipe = prompt_template | model | StrOutputParser()
+    try:
+        with st.spinner("Generating recipes..."):
+            results_text = chain_recipe.invoke({})
+    except Exception as e:
+        st.error(
+            "Gemini request failed. Common causes: invalid model name, missing/invalid API key, or quota/permissions."
+        )
+        st.exception(e)
+        st.stop()
+
     st.write("Recommended Recipes:")
     st.write(results_text)
 
