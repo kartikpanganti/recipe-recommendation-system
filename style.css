@@ -1,0 +1,122 @@
+
+/* Dark theme compatibility */
+:root,
+.stApp {
+    color-scheme: dark;
+}
+
+/* Avoid forcing black text (breaks dark mode) */
+.st-emotion-cache-4z1n4l.en6cib65{
+    color: inherit;
+}
+
+
+.viewerBadge_text__fzr3E{
+    visibility:hidden;
+}
+.viewerBadge_link__qRIco {
+    --tw-bg-opacity: 1;
+    background-color: rgb(255 75 75 / var(--tw-bg-opacity));
+    border-top-left-radius: .5rem;
+    padding: 1rem 1.25rem;
+    visibility: hidden;
+}
+
+a{
+    visibility:hidden;
+}
+
+#MainMenu{
+    visibility:hidden;
+}
+
+.stActionButton{
+    visibility:hidden;
+}
+
+section.main.st-emotion-cache-bm2z3a.ea3mdgi8 {
+    background-image: url("https://media.istockphoto.com/id/1419288565/photo/spices-herbs-and-cooking-oil-border-flat-lay.jpg?s=612x612&w=0&k=20&c=4y8OW0PkJfpk9cQ2BSufs3pJqXC89cZNb_PMduRdWEU=");
+    background-size: cover;
+    /* Improves readability over the image in dark mode */
+    background-color: rgba(0, 0, 0, 0.55);
+    background-blend-mode: multiply;
+}
+
+.st-emotion-cache-h4xjwg.ezrtsby2{
+    visibility:hidden;
+}
+
+.title {
+    font-size: 25px;
+    font-weight: bold;
+    font-family: 'Arial', sans-serif;
+}
+
+.content {
+    font-family: 'Helvetica', sans-serif;
+}
+
+span.st-emotion-cache-10trblm.e1nzilvr1{
+    margin-top: 50px;
+    color: darkmagenta;
+    text-shadow: #FC0 1px 0 10px;
+
+    text-align: center;
+    font-size: 54px;
+}
+
+h1 {
+    font-family: "Source Sans Pro", sans-serif;
+    font-weight: 700;
+    color: rgb(9 253 255);
+    padding: 1.25rem 0px 1rem;
+    margin: 0px;
+    line-height: 1.2;
+    font-size: 49px;
+    text-align: center;
+    text-shadow: 6px 6px 6px blue;
+}
+
+label.st-emotion-cache-1qg05tj.e1y5xkzn3 {
+    color: #ffffff;
+    font-weight: bold;
+    text-shadow: 0px 0px 5px red;
+}
+
+button.st-emotion-cache-19rxjzo.ef3psqc12{
+    background-color: #008CBA;;
+}
+
+#bui638val-0{
+    -webkit-text-stroke: 1px white;
+}
+
+strong {
+    color: #ffa475;
+    font-size: 25px;
+    font-weight: bold;
+}
+
+li {
+    color: #ffffff;
+    /* font-weight: bolder; */
+    -webkit-text-fill-color: black;
+    -webkit-text-stroke: 1px white;
+}
+
+li::marker{
+    list-style-type: circle;
+    color:#2fbcff;
+}
+
+.st-emotion-cache-h4xjwg {
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    height: 3.75rem;
+    background-color: rgba(0, 0, 0, 0);
+    outline: none;
+    z-index: 999990;
+    display: block;
+}

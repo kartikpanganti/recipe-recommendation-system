@@ -1,9 +1,10 @@
 import os
+from pathlib import Path
+
 import streamlit as st
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
+from langchain_core.globals import set_verbose
 from langchain_google_genai import GoogleGenerativeAI
-from langchain.chains import LLMChain
-import langchain.globals as lcg
 
 
 
@@ -15,12 +16,32 @@ print("---------------------------------------------------------")
 
 
 # Set verbose mode
-lcg.set_verbose(True)
+set_verbose(True)
 
 # Set up Google Generative AI model
-os.environ["GOOGLE_API_KEY"] = 'AIzaSyB5zDGm4ncIXzguq9qnYN6b1POuWJPEEfk'  # Replace with your actual API key this key will not work 
-generation_config = {"temperature": 0.9, "top_p": 1, "top_k": 1, "max_output_tokens": 2048}
-model = GoogleGenerativeAI(model="gemini-1.0-pro", generation_config=generation_config)
+google_api_key = os.getenv("GOOGLE_API_KEY")
+if not google_api_key:
+    try:
+        google_api_key = st.secrets["GOOGLE_API_KEY"]
+    except Exception:
+        google_api_key = None
+
+if not google_api_key:
+    st.error(
+        "Missing GOOGLE_API_KEY. Set it as an environment variable or in Streamlit Secrets."
+    )
+    st.stop()
+
+os.environ["GOOGLE_API_KEY"] = google_api_key
+generation_config = {"temperature": 0.7, "top_p": 1, "top_k": 1, "max_output_tokens": 4048}
+model_name = os.getenv("GEMINI_MODEL")
+if not model_name:
+    try:
+        model_name = st.secrets["GEMINI_MODEL"]
+    except Exception:
+        model_name = "gemini-3.1-flash-lite-preview"
+
+model = GoogleGenerativeAI(model=model_name, generation_config=generation_config)
 
 
 # Function to build the dynamic prompt based on inputs
@@ -82,137 +103,18 @@ Please make sure the output follows this structure.
 
     return prompt
 
+def load_css(file_name: str = "style.css") -> None:
+    css_path = Path(__file__).with_name(file_name)
+    try:
+        css = css_path.read_text(encoding="utf-8")
+    except OSError:
+        return
+
+    st.markdown(f"<style>\n{css}\n</style>", unsafe_allow_html=True)
+
+
 # Custom styling for Streamlit
-st.markdown(
-    """
-    <style>
-
-       .st-emotion-cache-4z1n4l en6cib65{
-    color:black;
-    }
-
-
-    .viewerBadge_text__fzr3E{
-    visibility:hidden;
-    }
-.viewerBadge_link__qRIco {
-    --tw-bg-opacity: 1;
-    background-color: rgb(255 75 75 / var(--tw-bg-opacity));
-    border-top-left-radius: .5rem;
-    padding: 1rem 1.25rem;
-    visibility: hidden;}
-
-    a{
-visibility:hidden;
-    }
-
-    #MainMenu{
-    visibility:hidden;
-    }
-
-    .stActionButton{
-    visibility:hidden;
-    }
-
-     section.main.st-emotion-cache-bm2z3a.ea3mdgi8 {
-    background-image: url("https://media.istockphoto.com/id/1419288565/photo/spices-herbs-and-cooking-oil-border-flat-lay.jpg?s=612x612&w=0&k=20&c=4y8OW0PkJfpk9cQ2BSufs3pJqXC89cZNb_PMduRdWEU=");
-    background-size: cover;
-    }
-
-    .st-emotion-cache-h4xjwg ezrtsby2{
-    visibility:hidden;
-    }
-        .title {
-            font-size: 25px;
-            font-weight: bold;
-            font-family: 'Arial', sans-serif;
-        }
-        .content {
-            font-family: 'Helvetica', sans-serif;
-        #petient
-        }
-        span.st-emotion-cache-10trblm.e1nzilvr1{
-            margin-top: 50px;
-            color: darkmagenta;
-                text-shadow: #FC0 1px 0 10px;
-
-    text-align: center;
-    font-size: 54px;
-        }
-       
-    
-}
-
-p .st-emotion-cache-1sno8jx e1nzilvr4{
-{
-    font-size: 50px;
-    font-family: auto;
-    color: #96f700;
-    text-shadow: 5px 3px 4px darkmagenta;
-}
-}
-h1 {
-    font-family: "Source Sans Pro", sans-serif;
-    font-weight: 700;
-    color: rgb(9 253 255);
-    padding: 1.25rem 0px 1rem;
-    margin: 0px;
-    line-height: 1.2;
-    font-size: 49px;
-    text-align: center;
-    text-shadow: 6px 6px 6px blue;
-}
-
-label.st-emotion-cache-1qg05tj.e1y5xkzn3 {
-    color: #ffffff;
-    font-weight: bold;
-    text-shadow: 0px 0px 5px red;
-}
-button.st-emotion-cache-19rxjzo.ef3psqc12{
-background-color: #008CBA;;
-}
-#bui638val-0{
--webkit-text-stroke: 1px white;
-
-}
-
-strong {
-    color: #ffa475;
-    font-size: 25px;
-    font-weight: bold;
-}
-
-
-li {
-    color: #ffffff;
-    /* font-weight: bolder; */
-    webkit-text-fill-color: black    ;
-    -webkit-text-stroke: 1px white;
-}
-
-li::marker{
-list-style-type: circle;
-color:#2fbcff;
-
-}
-
-
-.st-emotion-cache-h4xjwg {
-    position: fixed;
-    top: 0px;
-    left: 0px;
-    right: 0px;
-    height: 3.75rem;
-    background-color: rgba(0, 0, 0, 0);
-    outline: none;
-    z-index: 999990;
-    display: block;
-}
-    
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+load_css()
 
 # Create a Streamlit web app
 st.title('RECIPE RECOMMENDATION SYSTEM')
@@ -254,11 +156,8 @@ if st.button('Get Recipe Recommendations'):
     )
 
     # Create and run the chain
-    chain_recipe = LLMChain(llm=model, prompt=prompt_template)
-    results = chain_recipe.invoke({})
-
-    # Extract and display recipe recommendations
-    results_text = results['text']
+    chain_recipe = prompt_template | model
+    results_text = chain_recipe.invoke({})
     st.write("Recommended Recipes:")
     st.write(results_text)
 
