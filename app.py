@@ -163,6 +163,30 @@ def generate_with_fallbacks(prompt: str) -> str:
     raise last_error or RuntimeError("Gemini request failed")
 
 
+def _extract_gemini_error(e: Exception) -> tuple[str | None, str | None, str | None]:
+    """Best-effort extraction of (status, code, message) from our RuntimeError payloads."""
+    status = None
+    code = None
+    message = None
+
+    payload = None
+    if isinstance(e, RuntimeError) and e.args:
+        payload = e.args[0]
+
+    if isinstance(payload, dict):
+        err = payload.get("error")
+        if isinstance(err, dict):
+            status = err.get("status")
+            code = err.get("code")
+            message = err.get("message")
+
+    return (
+        str(status) if status is not None else None,
+        str(code) if code is not None else None,
+        str(message) if message is not None else None,
+    )
+
+
 # Function to build the dynamic prompt based on inputs
 def build_prompt(input_data):
     prompt = "Recipe Recommendation System:\nPlease provide detailed recipes for 5 dishes based on the following preferences:\n"
@@ -273,6 +297,18 @@ if st.button('Get Recipe Recommendations'):
         with st.spinner("Generating recipes..."):
             results_text = generate_with_fallbacks(prompt)
     except Exception as e:
+        status, code, message = _extract_gemini_error(e)
+        if status == "PERMISSION_DENIED" and message and "reported as leaked" in message.lower():
+            st.error(
+                "Your Gemini API key has been disabled because Google flagged it as leaked. "
+                "Create a NEW API key and update Streamlit Secrets/Environment Variables (GOOGLE_API_KEY)."
+            )
+            st.info(
+                "After updating the key, reboot the Streamlit app. If this repo was ever public, also rotate the key "
+                "and avoid printing/logging it anywhere."
+            )
+            st.stop()
+
         error_text = str(e)
         if "NOT_FOUND" in error_text or "not found" in error_text.lower():
             try:
@@ -297,7 +333,20 @@ if st.button('Get Recipe Recommendations'):
             "Gemini request failed. Check GOOGLE_API_KEY. If the error says NOT_FOUND, set GEMINI_MODEL "
             "and/or GEMINI_API_VERSION (try v1) in Streamlit Secrets/Environment Variables."
         )
-        st.exception(e)
+        # Keep the full traceback for unexpected failures; for common API errors, show a compact message.
+        if status or code:
+            compact = "".join(
+                part
+                for part in [
+                    f"Status: {status}\n" if status else "",
+                    f"Code: {code}\n" if code else "",
+                    f"Message: {message}\n" if message else "",
+                ]
+            ).strip()
+            if compact:
+                st.code(compact)
+        else:
+            st.exception(e)
         st.stop()
 
     st.write("Recommended Recipes:")
