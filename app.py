@@ -40,9 +40,17 @@ if not model_name:
     try:
         model_name = st.secrets["GEMINI_MODEL"]
     except Exception:
-        model_name = "gemini-1.5-flash"
+        # Safer default: widely available on v1beta generateContent.
+        # Newer models (e.g., 1.5/2.x) may not be enabled for all projects.
+        model_name = "gemini-1.0-pro"
 
-model = ChatGoogleGenerativeAI(model=model_name, google_api_key=google_api_key, **generation_config)
+def build_llm(name: str) -> ChatGoogleGenerativeAI:
+    return ChatGoogleGenerativeAI(
+        model=name, google_api_key=google_api_key, **generation_config
+    )
+
+
+model = build_llm(model_name)
 
 
 # Function to build the dynamic prompt based on inputs
@@ -162,8 +170,31 @@ if st.button('Get Recipe Recommendations'):
         with st.spinner("Generating recipes..."):
             results_text = chain_recipe.invoke({})
     except Exception as e:
+        error_text = str(e)
+        if "NOT_FOUND" in error_text or "is not found" in error_text:
+            # Automatic fallback for accounts/projects that don't have access to a given model.
+            for fallback_name in ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-preview"):
+                if fallback_name == model_name:
+                    continue
+                try:
+                    chain_recipe_fallback = prompt_template | build_llm(fallback_name) | StrOutputParser()
+                    with st.spinner(f"Retrying with {fallback_name}..."):
+                        results_text = chain_recipe_fallback.invoke({})
+                    st.info(
+                        f"Model '{model_name}' was not available; used '{fallback_name}' instead. "
+                        "To control this, set GEMINI_MODEL in Streamlit Secrets."
+                    )
+                    break
+                except Exception:
+                    results_text = None
+            if results_text is not None:
+                st.write("Recommended Recipes:")
+                st.write(results_text)
+                st.stop()
+
         st.error(
-            "Gemini request failed. Common causes: invalid model name, missing/invalid API key, or quota/permissions."
+            "Gemini request failed. Set GOOGLE_API_KEY and (optionally) GEMINI_MODEL in Streamlit Secrets. "
+            "If you see NOT_FOUND, your project may not have that model enabled."
         )
         st.exception(e)
         st.stop()
